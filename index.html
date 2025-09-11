@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Student Portfolio - Ravi Prasad Awasthi">
+  <title>Ravi Prasad Awasthi - Portfolio</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4F46E5;
+      --secondary: #6366F1;
+      --background: #F3F4F6;
+      --text: #1F2937;
+      --card-bg: #FFFFFF;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--background);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: #fff;
+      padding: 60px 20px;
+      text-align: center;
+      animation: fadeIn 1.5s ease-in-out;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 3rem;
+    }
+
+    header p {
+      font-size: 1.3rem;
+      opacity: 0.9;
+      margin-top: 10px;
+    }
+
+    section {
+      padding: 60px 20px;
+      max-width: 1000px;
+      margin: auto;
+      animation: fadeUp 1s ease forwards;
+    }
+
+    h2 {
+      color: var(--primary);
+      margin-bottom: 30px;
+      text-align: center;
+      font-size: 2rem;
+      position: relative;
+    }
+
+    h2::after {
+      content: "";
+      display: block;
+      width: 60px;
+      height: 4px;
+      background: var(--secondary);
+      margin: 10px auto 0;
+      border-radius: 2px;
+    }
+
+    .projects, .skills {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 25px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    footer {
+      text-align: center;
+      padding: 25px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 0.9rem;
+      margin-top: 40px;
+    }
+
+    a {
+      color: var(--secondary);
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+
+    a:hover {
+      color: var(--primary);
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from {opacity: 0; transform: translateY(-20px);}
+      to {opacity: 1; transform: translateY(0);}
+    }
+
+    @keyframes fadeUp {
+      from {opacity: 0; transform: translateY(30px);}
+      to {opacity: 1; transform: translateY(0);}
+    }
+
+    /* Contact section styling */
+    #contact p {
+      text-align: center;
+      font-size: 1.1rem;
+    }
+    #contact a {
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Ravi Prasad Awasthi</h1>
+    <p>Student | IBM Major | Dong-A University</p>
+  </header>
+
+  <section id="about">
+    <h2>About Me</h2>
+    <p style="text-align:center; max-width:700px; margin:auto;">
+      Hello! My name is <strong>Ravi Prasad Awasthi</strong> (Student ID: 2517811) and I am from Nepal. Right now, I am a student of Dong-A University. My major is International Business Management (IBM).  
+      I am passionate about improving my communication skills and learning new things.
+    </p>
+  </section>
+
+  <section id="projects">
+    <h2>Projects</h2>
+    <div class="projects">
+      <div class="card">
+        <h3>Project 1</h3>
+        <p>Brief description of your project, technologies used, and link to GitHub or live demo.</p>
+      </div>
+      <div class="card">
+        <h3>Project 2</h3>
+        <p>Brief description of another project.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="skills">
+    <h2>Skills</h2>
+    <div class="skills">
+      <div class="card">Communication</div>
+      <div class="card">Teamwork</div>
+      <div class="card">Problem Solving</div>
+    </div>
+  </section>
+
+  <section id="contact">
+    <h2>Contact</h2>
+    <p>Email: <a href="mailto:raviawasthishyman@gmail.com">raviawasthishyman@gmail.com</a></p>
+    <p>GitHub: <a href="https://github.com/raviawasthishyman-svg" target="_blank">raviawasthishyman-svg</a></p>
+  </section>
+
+  <footer>
+    © 2025 Ravi Prasad Awasthi | Built with ❤️ using HTML & CSS
+  </footer>
+</body>
+</html>
