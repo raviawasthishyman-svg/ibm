@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>ddtool11 – CSV Analyzer</title>
+<title>ddtool22 – CSV Data Analysis Tool</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <!-- Chart.js -->
@@ -11,216 +11,224 @@
 <style>
 body {
   font-family: Arial, sans-serif;
-  background: #f4f6f8;
-  padding: 20px;
+  background:#f2f4f7;
+  padding:20px;
 }
-h1 { color: #2c3e50; }
-.box {
-  background: #fff;
-  padding: 15px;
-  margin-bottom: 15px;
-  border-radius: 8px;
+h1,h2 { color:#2c3e50; }
+.section {
+  background:#fff;
+  padding:15px;
+  margin-bottom:15px;
+  border-radius:8px;
 }
-label { font-weight: bold; }
-select, input, button {
-  margin-top: 5px;
-  padding: 6px;
+label { font-weight:bold; }
+input, select, button {
+  margin-top:5px;
+  padding:6px;
 }
 button {
-  background: #007bff;
-  color: #fff;
-  border: none;
-  cursor: pointer;
+  background:#007bff;
+  color:#fff;
+  border:none;
+  cursor:pointer;
 }
-button:hover { background: #0056b3; }
+button:hover { background:#0056b3; }
 table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px;
 }
 th, td {
-  border: 1px solid #ccc;
-  padding: 5px;
-  text-align: center;
+  border:1px solid #ccc;
+  padding:5px;
+  text-align:center;
 }
-th { background: #eee; }
-.anomaly { background: #ffdddd; }
+th { background:#eee; }
+.anomaly { background:#ffd6d6; }
 .tooltip {
-  border-bottom: 1px dotted black;
-  cursor: help;
+  border-bottom:1px dotted #000;
+  cursor:help;
 }
 </style>
 </head>
 
 <body>
 
-<h1>📊 ddtool11 – CSV Analysis Tool</h1>
+<h1>📊 ddtool22 – CSV Analysis (Z-Score & SD)</h1>
 
-<div class="box">
-  <label class="tooltip" title="Upload a CSV file with headers">
-    Upload CSV
-  </label><br>
+<div class="section">
+  <label class="tooltip" title="Upload a CSV file with headers">Upload CSV</label><br>
   <input type="file" id="fileInput" accept=".csv">
 </div>
 
-<div class="box">
-  <label class="tooltip" title="Choose numeric column for analysis">
-    Numeric Column
-  </label><br>
-  <select id="columnSelect"></select><br><br>
+<div class="section">
+  <label class="tooltip" title="Numeric column for statistics">Numeric Column</label><br>
+  <select id="numCol"></select><br><br>
 
-  <label class="tooltip" title="Absolute Z-score limit for anomalies">
-    Z-score Threshold
-  </label><br>
+  <label class="tooltip" title="Absolute Z-score threshold">Z-Score Threshold</label><br>
   <input type="number" id="zLimit" value="3" step="0.1"><br>
 
-  <button id="analyzeBtn">Analyze</button>
+  <button onclick="analyze()">Analyze</button>
 </div>
 
-<div class="box">
-  <h3>📐 Statistics</h3>
-  <div id="stats">No data</div>
+<div class="section">
+  <h2>📐 Statistics</h2>
+  <div id="stats">No data yet</div>
 </div>
 
-<div class="box">
-  <h3>🔎 Filter</h3>
+<div class="section">
+  <h2>🔎 Filter</h2>
   <select id="filterCol"></select>
   <input type="text" id="filterVal">
-  <button id="filterBtn">Apply</button>
+  <button onclick="applyFilter()">Apply</button>
 </div>
 
-<div class="box">
-  <h3>📄 Data Table</h3>
+<div class="section">
+  <h2>📄 Data Table</h2>
   <div style="overflow:auto">
     <table id="table"></table>
   </div>
 </div>
 
-<div class="box">
-  <h3>📈 Chart</h3>
+<div class="section">
+  <h2>📈 Chart</h2>
   <canvas id="chart"></canvas>
 </div>
 
 <script>
 let headers = [];
-let data = [];
-let chart = null;
+let rows = [];
+let chartObj = null;
 
-// --- CSV PARSER (ROBUST, SIMPLE) ---
+/* ---------- ROBUST CSV PARSER (QUOTES + COMMAS) ---------- */
 function parseCSV(text) {
-  const lines = text.trim().split(/\r?\n/);
-  headers = lines[0].split(",");
-  data = [];
+  const result = [];
+  let row = [], field = "", inQuotes = false;
 
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(",");
-    const row = {};
-    headers.forEach((h, idx) => row[h] = values[idx]);
-    data.push(row);
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"' ) {
+      inQuotes = !inQuotes;
+    } else if (c === "," && !inQuotes) {
+      row.push(field);
+      field = "";
+    } else if ((c === "\\n" || c === "\\r") && !inQuotes) {
+      if (field || row.length) {
+        row.push(field);
+        result.push(row);
+        row = [];
+        field = "";
+      }
+    } else {
+      field += c;
+    }
   }
+  if (field || row.length) {
+    row.push(field);
+    result.push(row);
+  }
+  return result;
 }
 
-// --- FILE UPLOAD ---
+/* ---------- FILE LOAD ---------- */
 document.getElementById("fileInput").addEventListener("change", e => {
   const file = e.target.files[0];
   if (!file) return;
 
   const reader = new FileReader();
   reader.onload = () => {
-    parseCSV(reader.result);
+    const parsed = parseCSV(reader.result.trim());
+    headers = parsed.shift();
+    rows = parsed.map(r => {
+      const obj = {};
+      headers.forEach((h,i)=>obj[h]=r[i]);
+      return obj;
+    });
     setupSelectors();
-    renderTable(data);
+    renderTable(rows);
   };
   reader.readAsText(file);
 });
 
-// --- SETUP DROPDOWNS ---
+/* ---------- SETUP SELECTS ---------- */
 function setupSelectors() {
-  const colSel = document.getElementById("columnSelect");
-  const filterSel = document.getElementById("filterCol");
-
-  colSel.innerHTML = "";
-  filterSel.innerHTML = "";
-
+  numCol.innerHTML = "";
+  filterCol.innerHTML = "";
   headers.forEach(h => {
-    colSel.add(new Option(h, h));
-    filterSel.add(new Option(h, h));
+    numCol.add(new Option(h,h));
+    filterCol.add(new Option(h,h));
   });
 }
 
-// --- ANALYSIS ---
-document.getElementById("analyzeBtn").onclick = () => {
-  const col = columnSelect.value;
+/* ---------- ANALYSIS ---------- */
+function analyze() {
+  const col = numCol.value;
   const limit = parseFloat(zLimit.value);
 
-  const nums = data
+  const values = rows
     .map(r => parseFloat(r[col]))
     .filter(v => !isNaN(v));
 
-  const mean = nums.reduce((a,b)=>a+b,0) / nums.length;
+  const mean = values.reduce((a,b)=>a+b,0) / values.length;
   const sd = Math.sqrt(
-    nums.reduce((a,b)=>a + Math.pow(b-mean,2),0) / nums.length
+    values.reduce((a,b)=>a+(b-mean)**2,0) / values.length
   );
 
-  data.forEach(r => {
+  rows.forEach(r => {
     const v = parseFloat(r[col]);
     if (isNaN(v)) {
       r._z = "";
       r._a = false;
     } else {
-      r._z = ((v - mean) / sd).toFixed(2);
-      r._a = Math.abs(r._z) > limit;
+      const z = (v - mean) / sd;
+      r._z = z.toFixed(2);
+      r._a = Math.abs(z) > limit;
     }
   });
 
-  document.getElementById("stats").innerHTML = `
+  stats.innerHTML = `
     <b>Mean:</b> ${mean.toFixed(3)}<br>
     <b>Standard Deviation:</b> ${sd.toFixed(3)}<br>
-    <span class="tooltip" title="Z = (x − mean) / SD">
-      Z-score formula
+    <span class="tooltip" title="Z = (value − mean) / SD">
+      Z-Score Formula
     </span>
   `;
 
-  renderTable(data);
-  drawChart(nums, col);
-};
+  renderTable(rows);
+  drawChart(values, col);
+}
 
-// --- TABLE ---
-function renderTable(rows) {
-  const table = document.getElementById("table");
+/* ---------- TABLE ---------- */
+function renderTable(data) {
   table.innerHTML = "";
-
   let head = "<tr>";
-  headers.forEach(h => head += `<th>${h}</th>`);
+  headers.forEach(h=>head+=`<th>${h}</th>`);
   head += "<th>Z</th></tr>";
   table.innerHTML += head;
 
-  rows.forEach(r => {
-    let row = `<tr class="${r._a ? 'anomaly' : ''}">`;
-    headers.forEach(h => row += `<td>${r[h]}</td>`);
-    row += `<td>${r._z || ""}</td></tr>`;
-    table.innerHTML += row;
+  data.forEach(r => {
+    let tr = `<tr class="${r._a?'anomaly':''}">`;
+    headers.forEach(h=>tr+=`<td>${r[h]??''}</td>`);
+    tr += `<td>${r._z||''}</td></tr>`;
+    table.innerHTML += tr;
   });
 }
 
-// --- FILTER ---
-document.getElementById("filterBtn").onclick = () => {
+/* ---------- FILTER ---------- */
+function applyFilter() {
   const c = filterCol.value;
   const v = filterVal.value;
-  renderTable(data.filter(r => r[c] == v));
-};
+  renderTable(rows.filter(r => r[c] == v));
+}
 
-// --- CHART ---
-function drawChart(values, label) {
-  if (chart) chart.destroy();
-  chart = new Chart(document.getElementById("chart"), {
-    type: "line",
-    data: {
-      labels: values.map((_,i)=>i+1),
-      datasets: [{
-        label: label,
-        data: values
-      }]
+/* ---------- CHART ---------- */
+function drawChart(vals, label) {
+  if (chartObj) chartObj.destroy();
+  chartObj = new Chart(document.getElementById("chart"), {
+    type:"line",
+    data:{
+      labels: vals.map((_,i)=>i+1),
+      datasets:[{ label, data: vals }]
     }
   });
 }
