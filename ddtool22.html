@@ -1,280 +1,230 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ddtool11 – CSV Analysis Tool</title>
+<meta charset="UTF-8">
+<title>ddtool11 – CSV Analyzer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Chart.js CDN (GitHub Pages friendly) -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f7f9fc;
-      margin: 0;
-      padding: 20px;
-      color: #333;
-    }
-    h1, h2 {
-      color: #2c3e50;
-    }
-    .container {
-      max-width: 1200px;
-      margin: auto;
-    }
-    .card {
-      background: #fff;
-      padding: 16px;
-      border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-      margin-bottom: 20px;
-    }
-    label {
-      font-weight: bold;
-      display: block;
-      margin-top: 10px;
-    }
-    input, select, button {
-      margin-top: 6px;
-      padding: 6px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-    }
-    button {
-      cursor: pointer;
-      background: #3498db;
-      color: white;
-      border: none;
-      margin-top: 12px;
-    }
-    button:hover {
-      background: #2980b9;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 6px;
-      font-size: 13px;
-      text-align: center;
-    }
-    th {
-      background: #ecf0f1;
-    }
-    .tooltip {
-      cursor: help;
-      border-bottom: 1px dotted #555;
-    }
-    .anomaly {
-      background-color: #ffe6e6;
-    }
-    canvas {
-      max-height: 350px;
-    }
-  </style>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+  padding: 20px;
+}
+h1 { color: #2c3e50; }
+.box {
+  background: #fff;
+  padding: 15px;
+  margin-bottom: 15px;
+  border-radius: 8px;
+}
+label { font-weight: bold; }
+select, input, button {
+  margin-top: 5px;
+  padding: 6px;
+}
+button {
+  background: #007bff;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+button:hover { background: #0056b3; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+th, td {
+  border: 1px solid #ccc;
+  padding: 5px;
+  text-align: center;
+}
+th { background: #eee; }
+.anomaly { background: #ffdddd; }
+.tooltip {
+  border-bottom: 1px dotted black;
+  cursor: help;
+}
+</style>
 </head>
 
 <body>
-<div class="container">
-  <h1>📊 ddtool11 – CSV Analysis Learning Tool</h1>
-  <p>
-    Upload a CSV file to explore <b>basic statistics</b>,
-    <b>standard deviation</b>, and <b>Z-score anomaly detection</b>.
-  </p>
 
-  <!-- Upload -->
-  <div class="card">
-    <label class="tooltip" title="Upload a comma-separated values (.csv) file">
-      Upload CSV File
-    </label>
-    <input type="file" id="csvFile" accept=".csv" />
-  </div>
+<h1>📊 ddtool11 – CSV Analysis Tool</h1>
 
-  <!-- Column Selection -->
-  <div class="card">
-    <label class="tooltip" title="Choose a numeric column for analysis">
-      Select Numeric Column
-    </label>
-    <select id="columnSelect"></select>
+<div class="box">
+  <label class="tooltip" title="Upload a CSV file with headers">
+    Upload CSV
+  </label><br>
+  <input type="file" id="fileInput" accept=".csv">
+</div>
 
-    <label class="tooltip" title="Rows with |Z-score| above this value are anomalies">
-      Z-Score Threshold
-    </label>
-    <input type="number" id="zThreshold" value="3" step="0.1" />
+<div class="box">
+  <label class="tooltip" title="Choose numeric column for analysis">
+    Numeric Column
+  </label><br>
+  <select id="columnSelect"></select><br><br>
 
-    <button onclick="analyzeColumn()">Analyze Column</button>
-  </div>
+  <label class="tooltip" title="Absolute Z-score limit for anomalies">
+    Z-score Threshold
+  </label><br>
+  <input type="number" id="zLimit" value="3" step="0.1"><br>
 
-  <!-- Stats -->
-  <div class="card">
-    <h2>📐 Column Statistics</h2>
-    <div id="stats">No analysis yet.</div>
-  </div>
+  <button id="analyzeBtn">Analyze</button>
+</div>
 
-  <!-- Filter -->
-  <div class="card">
-    <h2>🔎 Filter Data</h2>
-    <label class="tooltip" title="Choose a column to filter by">
-      Column
-    </label>
-    <select id="filterColumn"></select>
+<div class="box">
+  <h3>📐 Statistics</h3>
+  <div id="stats">No data</div>
+</div>
 
-    <label class="tooltip" title="Exact match filter">
-      Value
-    </label>
-    <input type="text" id="filterValue" />
+<div class="box">
+  <h3>🔎 Filter</h3>
+  <select id="filterCol"></select>
+  <input type="text" id="filterVal">
+  <button id="filterBtn">Apply</button>
+</div>
 
-    <button onclick="applyFilter()">Apply Filter</button>
-  </div>
-
-  <!-- Table -->
-  <div class="card">
-    <h2>📄 Data Preview (Anomalies Highlighted)</h2>
-    <div style="overflow-x:auto">
-      <table id="dataTable"></table>
-    </div>
-  </div>
-
-  <!-- Chart -->
-  <div class="card">
-    <h2>📈 Visualization</h2>
-    <p>
-      Line chart showing values for the selected numeric column.
-    </p>
-    <canvas id="chart"></canvas>
+<div class="box">
+  <h3>📄 Data Table</h3>
+  <div style="overflow:auto">
+    <table id="table"></table>
   </div>
 </div>
 
-<script>
-let rawData = [];
-let headers = [];
-let chartInstance = null;
+<div class="box">
+  <h3>📈 Chart</h3>
+  <canvas id="chart"></canvas>
+</div>
 
-// Handle CSV upload
-document.getElementById('csvFile').addEventListener('change', function () {
-  const file = this.files[0];
+<script>
+let headers = [];
+let data = [];
+let chart = null;
+
+// --- CSV PARSER (ROBUST, SIMPLE) ---
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  headers = lines[0].split(",");
+  data = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(",");
+    const row = {};
+    headers.forEach((h, idx) => row[h] = values[idx]);
+    data.push(row);
+  }
+}
+
+// --- FILE UPLOAD ---
+document.getElementById("fileInput").addEventListener("change", e => {
+  const file = e.target.files[0];
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = e => parseCSV(e.target.result);
+  reader.onload = () => {
+    parseCSV(reader.result);
+    setupSelectors();
+    renderTable(data);
+  };
   reader.readAsText(file);
 });
 
-// Parse CSV (simple parser for learning purposes)
-function parseCSV(text) {
-  const rows = text.trim().split('\\n').map(r => r.split(','));
-  headers = rows.shift();
+// --- SETUP DROPDOWNS ---
+function setupSelectors() {
+  const colSel = document.getElementById("columnSelect");
+  const filterSel = document.getElementById("filterCol");
 
-  rawData = rows.map(r =>
-    Object.fromEntries(headers.map((h, i) => [h, r[i]]))
-  );
-
-  populateSelectors();
-  renderTable(rawData);
-}
-
-// Populate dropdowns
-function populateSelectors() {
-  const columnSelect = document.getElementById('columnSelect');
-  const filterColumn = document.getElementById('filterColumn');
-
-  columnSelect.innerHTML = '';
-  filterColumn.innerHTML = '';
+  colSel.innerHTML = "";
+  filterSel.innerHTML = "";
 
   headers.forEach(h => {
-    columnSelect.innerHTML += `<option value="${h}">${h}</option>`;
-    filterColumn.innerHTML += `<option value="${h}">${h}</option>`;
+    colSel.add(new Option(h, h));
+    filterSel.add(new Option(h, h));
   });
 }
 
-// Analyze column (Mean, SD, Z-score)
-function analyzeColumn() {
-  const col = document.getElementById('columnSelect').value;
-  const zLimit = parseFloat(document.getElementById('zThreshold').value);
+// --- ANALYSIS ---
+document.getElementById("analyzeBtn").onclick = () => {
+  const col = columnSelect.value;
+  const limit = parseFloat(zLimit.value);
 
-  const values = rawData
+  const nums = data
     .map(r => parseFloat(r[col]))
     .filter(v => !isNaN(v));
 
-  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  const mean = nums.reduce((a,b)=>a+b,0) / nums.length;
   const sd = Math.sqrt(
-    values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length
+    nums.reduce((a,b)=>a + Math.pow(b-mean,2),0) / nums.length
   );
 
-  rawData.forEach(r => {
+  data.forEach(r => {
     const v = parseFloat(r[col]);
     if (isNaN(v)) {
-      r._z = null;
-      r._anomaly = false;
+      r._z = "";
+      r._a = false;
     } else {
-      r._z = (v - mean) / sd;
-      r._anomaly = Math.abs(r._z) > zLimit;
+      r._z = ((v - mean) / sd).toFixed(2);
+      r._a = Math.abs(r._z) > limit;
     }
   });
 
-  document.getElementById('stats').innerHTML = `
+  document.getElementById("stats").innerHTML = `
     <b>Mean:</b> ${mean.toFixed(3)}<br>
     <b>Standard Deviation:</b> ${sd.toFixed(3)}<br>
-    <span class="tooltip" title="Z = (value − mean) / SD">
-      <b>Z-score formula:</b> (x − μ) / σ
+    <span class="tooltip" title="Z = (x − mean) / SD">
+      Z-score formula
     </span>
   `;
 
-  renderTable(rawData);
-  renderChart(values, col);
-}
+  renderTable(data);
+  drawChart(nums, col);
+};
 
-// Render table
-function renderTable(data) {
-  const table = document.getElementById('dataTable');
-  table.innerHTML = '';
+// --- TABLE ---
+function renderTable(rows) {
+  const table = document.getElementById("table");
+  table.innerHTML = "";
 
-  const headerRow =
-    `<tr>${headers.map(h => `<th>${h}</th>`).join('')}<th>Z</th></tr>`;
-  table.innerHTML += headerRow;
+  let head = "<tr>";
+  headers.forEach(h => head += `<th>${h}</th>`);
+  head += "<th>Z</th></tr>";
+  table.innerHTML += head;
 
-  data.forEach(r => {
-    const rowClass = r._anomaly ? 'class="anomaly"' : '';
-    table.innerHTML += `
-      <tr ${rowClass}>
-        ${headers.map(h => `<td>${r[h]}</td>`).join('')}
-        <td>${r._z !== null ? r._z.toFixed(2) : ''}</td>
-      </tr>
-    `;
+  rows.forEach(r => {
+    let row = `<tr class="${r._a ? 'anomaly' : ''}">`;
+    headers.forEach(h => row += `<td>${r[h]}</td>`);
+    row += `<td>${r._z || ""}</td></tr>`;
+    table.innerHTML += row;
   });
 }
 
-// Apply filter
-function applyFilter() {
-  const col = document.getElementById('filterColumn').value;
-  const val = document.getElementById('filterValue').value;
+// --- FILTER ---
+document.getElementById("filterBtn").onclick = () => {
+  const c = filterCol.value;
+  const v = filterVal.value;
+  renderTable(data.filter(r => r[c] == v));
+};
 
-  const filtered = rawData.filter(r => r[col] == val);
-  renderTable(filtered);
-}
-
-// Render chart
-function renderChart(values, label) {
-  const ctx = document.getElementById('chart');
-
-  if (chartInstance) chartInstance.destroy();
-
-  chartInstance = new Chart(ctx, {
-    type: 'line',
+// --- CHART ---
+function drawChart(values, label) {
+  if (chart) chart.destroy();
+  chart = new Chart(document.getElementById("chart"), {
+    type: "line",
     data: {
-      labels: values.map((_, i) => i + 1),
+      labels: values.map((_,i)=>i+1),
       datasets: [{
         label: label,
-        data: values,
-        fill: false
+        data: values
       }]
     }
   });
 }
 </script>
+
 </body>
 </html>
