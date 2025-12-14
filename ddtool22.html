@@ -1,237 +1,304 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>ddtool22 – CSV Data Analysis Tool</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <title>CSV Data Analysis Learning Tool</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+  <!-- Chart.js CDN (works on GitHub Pages) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<style>
-body {
-  font-family: Arial, sans-serif;
-  background:#f2f4f7;
-  padding:20px;
-}
-h1,h2 { color:#2c3e50; }
-.section {
-  background:#fff;
-  padding:15px;
-  margin-bottom:15px;
-  border-radius:8px;
-}
-label { font-weight:bold; }
-input, select, button {
-  margin-top:5px;
-  padding:6px;
-}
-button {
-  background:#007bff;
-  color:#fff;
-  border:none;
-  cursor:pointer;
-}
-button:hover { background:#0056b3; }
-table {
-  width:100%;
-  border-collapse:collapse;
-  font-size:13px;
-}
-th, td {
-  border:1px solid #ccc;
-  padding:5px;
-  text-align:center;
-}
-th { background:#eee; }
-.anomaly { background:#ffd6d6; }
-.tooltip {
-  border-bottom:1px dotted #000;
-  cursor:help;
-}
-</style>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fa;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1, h2 {
+      color: #2c3e50;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    label {
+      font-weight: bold;
+    }
+
+    input, select, button {
+      margin: 5px 0;
+      padding: 6px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 6px;
+      text-align: left;
+    }
+
+    th {
+      background: #ecf0f1;
+    }
+
+    .highlight {
+      background-color: #ffe0e0;
+    }
+
+    .tooltip {
+      font-size: 12px;
+      color: #555;
+    }
+
+    canvas {
+      max-width: 100%;
+    }
+  </style>
 </head>
-
 <body>
 
-<h1>📊 ddtool22 – CSV Analysis (Z-Score & SD)</h1>
+  <h1>CSV Data Analysis Tool 📊</h1>
+  <p class="tooltip">
+    This learning tool helps you upload a CSV file, explore basic statistics, detect anomalies using Z-score,
+    filter data by column, and visualize numeric data.
+  </p>
 
-<div class="section">
-  <label class="tooltip" title="Upload a CSV file with headers">Upload CSV</label><br>
-  <input type="file" id="fileInput" accept=".csv">
-</div>
-
-<div class="section">
-  <label class="tooltip" title="Numeric column for statistics">Numeric Column</label><br>
-  <select id="numCol"></select><br><br>
-
-  <label class="tooltip" title="Absolute Z-score threshold">Z-Score Threshold</label><br>
-  <input type="number" id="zLimit" value="3" step="0.1"><br>
-
-  <button onclick="analyze()">Analyze</button>
-</div>
-
-<div class="section">
-  <h2>📐 Statistics</h2>
-  <div id="stats">No data yet</div>
-</div>
-
-<div class="section">
-  <h2>🔎 Filter</h2>
-  <select id="filterCol"></select>
-  <input type="text" id="filterVal">
-  <button onclick="applyFilter()">Apply</button>
-</div>
-
-<div class="section">
-  <h2>📄 Data Table</h2>
-  <div style="overflow:auto">
-    <table id="table"></table>
+  <!-- Upload Section -->
+  <div class="card">
+    <h2>1. Upload CSV File</h2>
+    <label for="csvFile">Select CSV file:</label><br />
+    <input type="file" id="csvFile" accept=".csv" />
   </div>
-</div>
 
-<div class="section">
-  <h2>📈 Chart</h2>
-  <canvas id="chart"></canvas>
-</div>
+  <!-- Filter Section -->
+  <div class="card">
+    <h2>2. Filter Data</h2>
+    <label>Column:</label><br />
+    <select id="filterColumn"></select><br />
+
+    <label>Value contains:</label><br />
+    <input type="text" id="filterValue" placeholder="Enter value" />
+
+    <button onclick="applyFilter()">Apply Filter</button>
+    <button onclick="resetFilter()">Reset</button>
+  </div>
+
+  <!-- Statistics Section -->
+  <div class="card">
+    <h2>3. Descriptive Statistics (Numeric Columns)</h2>
+    <div id="stats"></div>
+  </div>
+
+  <!-- Anomaly Section -->
+  <div class="card">
+    <h2>4. Anomalous Records (Z-Score Method)</h2>
+    <p class="tooltip">
+      Rows with |Z-score| ≥ 3 are considered anomalous.
+    </p>
+    <p><b>Total Records:</b> <span id="totalCount">0</span></p>
+    <p><b>Anomalous Records:</b> <span id="anomalyCount">0</span></p>
+    <div id="anomalyTable"></div>
+  </div>
+  </div>
+  </div>
+
+  <!-- Visualization Section -->
+  <div class="card">
+    <h2>4.1 Learning Notes: Understanding the Analysis</h2>
+    <p class="tooltip">
+      <b>Mean:</b> The average value of a numeric column. It represents the central tendency of the data.<br><br>
+      <b>Standard Deviation (SD):</b> Measures how much the values deviate from the mean. A higher SD means data is more spread out.<br><br>
+      <b>Z-Score:</b> Shows how far a value is from the mean in terms of standard deviations.<br>
+      Formula: Z = (value − mean) / standard deviation<br><br>
+      <b>Anomalous Data:</b> Values with |Z-score| ≥ 3 are considered anomalies because they are far from normal behavior.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>5. Data Visualization</h2>
+    <label>Select Numeric Column:</label><br />
+    <select id="chartColumn" onchange="drawChart()"></select>
+    <canvas id="chart"></canvas>
+  </div>
 
 <script>
-let headers = [];
-let rows = [];
-let chartObj = null;
+  let rawData = [];
+  let headers = [];
+  let filteredData = [];
+  let chartInstance = null;
 
-/* ---------- ROBUST CSV PARSER (QUOTES + COMMAS) ---------- */
-function parseCSV(text) {
-  const result = [];
-  let row = [], field = "", inQuotes = false;
+  document.getElementById('csvFile').addEventListener('change', handleFile);
 
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (c === '"' ) {
-      inQuotes = !inQuotes;
-    } else if (c === "," && !inQuotes) {
-      row.push(field);
-      field = "";
-    } else if ((c === "\\n" || c === "\\r") && !inQuotes) {
-      if (field || row.length) {
-        row.push(field);
-        result.push(row);
-        row = [];
-        field = "";
-      }
-    } else {
-      field += c;
-    }
+  function handleFile(event) {
+    const file = event.target.files[0];
+    const reader = new FileReader();
+
+    reader.onload = () => parseCSV(reader.result);
+    reader.readAsText(file);
   }
-  if (field || row.length) {
-    row.push(field);
-    result.push(row);
-  }
-  return result;
-}
 
-/* ---------- FILE LOAD ---------- */
-document.getElementById("fileInput").addEventListener("change", e => {
-  const file = e.target.files[0];
-  if (!file) return;
+  function parseCSV(text) {
+    const rows = text.trim().split('\n');
+    headers = rows[0].split(',');
 
-  const reader = new FileReader();
-  reader.onload = () => {
-    const parsed = parseCSV(reader.result.trim());
-    headers = parsed.shift();
-    rows = parsed.map(r => {
-      const obj = {};
-      headers.forEach((h,i)=>obj[h]=r[i]);
+    rawData = rows.slice(1).map(row => {
+      const values = row.split(',');
+      let obj = {};
+      headers.forEach((h, i) => obj[h] = values[i]);
       return obj;
     });
-    setupSelectors();
-    renderTable(rows);
-  };
-  reader.readAsText(file);
-});
 
-/* ---------- SETUP SELECTS ---------- */
-function setupSelectors() {
-  numCol.innerHTML = "";
-  filterCol.innerHTML = "";
-  headers.forEach(h => {
-    numCol.add(new Option(h,h));
-    filterCol.add(new Option(h,h));
-  });
-}
+    filteredData = [...rawData];
+    populateSelectors();
+    computeStats();
+    detectAnomalies();
+    drawChart();
+  }
 
-/* ---------- ANALYSIS ---------- */
-function analyze() {
-  const col = numCol.value;
-  const limit = parseFloat(zLimit.value);
+  function populateSelectors() {
+    const filterCol = document.getElementById('filterColumn');
+    const chartCol = document.getElementById('chartColumn');
+    filterCol.innerHTML = chartCol.innerHTML = '';
 
-  const values = rows
-    .map(r => parseFloat(r[col]))
-    .filter(v => !isNaN(v));
+    headers.forEach(h => {
+      filterCol.add(new Option(h, h));
+      if (isNumericColumn(h)) chartCol.add(new Option(h, h));
+    });
+  }
 
-  const mean = values.reduce((a,b)=>a+b,0) / values.length;
-  const sd = Math.sqrt(
-    values.reduce((a,b)=>a+(b-mean)**2,0) / values.length
-  );
+  function isNumericColumn(col) {
+    return rawData.every(row => !isNaN(parseFloat(row[col])));
+  }
 
-  rows.forEach(r => {
-    const v = parseFloat(r[col]);
-    if (isNaN(v)) {
-      r._z = "";
-      r._a = false;
-    } else {
-      const z = (v - mean) / sd;
-      r._z = z.toFixed(2);
-      r._a = Math.abs(z) > limit;
-    }
-  });
+  function computeStats() {
+    let html = '<table><tr><th>Column</th><th>Mean</th><th>Std Dev</th><th>Min</th><th>Max</th></tr>';
 
-  stats.innerHTML = `
-    <b>Mean:</b> ${mean.toFixed(3)}<br>
-    <b>Standard Deviation:</b> ${sd.toFixed(3)}<br>
-    <span class="tooltip" title="Z = (value − mean) / SD">
-      Z-Score Formula
-    </span>
-  `;
+    headers.forEach(h => {
+      if (!isNumericColumn(h)) return;
 
-  renderTable(rows);
-  drawChart(values, col);
-}
+      const nums = rawData.map(r => parseFloat(r[h]));
+      const mean = nums.reduce((a,b) => a+b, 0) / nums.length;
+      const sd = Math.sqrt(nums.reduce((a,b) => a + Math.pow(b-mean,2), 0) / nums.length);
 
-/* ---------- TABLE ---------- */
-function renderTable(data) {
-  table.innerHTML = "";
-  let head = "<tr>";
-  headers.forEach(h=>head+=`<th>${h}</th>`);
-  head += "<th>Z</th></tr>";
-  table.innerHTML += head;
+      html += `<tr>
+        <td>${h}</td>
+        <td>${mean.toFixed(2)}</td>
+        <td>${sd.toFixed(2)}</td>
+        <td>${Math.min(...nums)}</td>
+        <td>${Math.max(...nums)}</td>
+      </tr>`;
+    });
 
-  data.forEach(r => {
-    let tr = `<tr class="${r._a?'anomaly':''}">`;
-    headers.forEach(h=>tr+=`<td>${r[h]??''}</td>`);
-    tr += `<td>${r._z||''}</td></tr>`;
-    table.innerHTML += tr;
-  });
-}
+    html += '</table>';
+    document.getElementById('stats').innerHTML = html;
+  }
 
-/* ---------- FILTER ---------- */
-function applyFilter() {
-  const c = filterCol.value;
-  const v = filterVal.value;
-  renderTable(rows.filter(r => r[c] == v));
-}
+  function detectAnomalies() {
+    let anomalyRows = [];
 
-/* ---------- CHART ---------- */
-function drawChart(vals, label) {
-  if (chartObj) chartObj.destroy();
-  chartObj = new Chart(document.getElementById("chart"), {
-    type:"line",
-    data:{
-      labels: vals.map((_,i)=>i+1),
-      datasets:[{ label, data: vals }]
-    }
-  });
-}
+    // calculate mean and SD once per numeric column
+    let stats = {};
+    headers.forEach(h => {
+      if (isNumericColumn(h)) {
+        const nums = rawData.map(r => parseFloat(r[h]));
+        const mean = nums.reduce((a,b)=>a+b,0) / nums.length;
+        const sd = Math.sqrt(nums.reduce((a,b)=>a+Math.pow(b-mean,2),0) / nums.length);
+        stats[h] = { mean, sd };
+      }
+    });
+
+    rawData.forEach(row => {
+      let isAnomaly = false;
+      headers.forEach(h => {
+        if (stats[h] && stats[h].sd !== 0) {
+          const z = (parseFloat(row[h]) - stats[h].mean) / stats[h].sd;
+          if (Math.abs(z) >= 3) isAnomaly = true;
+        }
+      });
+      if (isAnomaly) anomalyRows.push(row);
+    });
+
+    document.getElementById('totalCount').textContent = rawData.length;
+    document.getElementById('anomalyCount').textContent = anomalyRows.length;
+
+    let html = '<table><tr>';
+    headers.forEach(h => html += `<th>${h}</th>`);
+    html += '</tr>';
+
+    anomalyRows.forEach(row => {
+      html += '<tr class="highlight">';
+      headers.forEach(h => html += `<td>${row[h]}</td>`);
+      html += '</tr>';
+    });
+
+    html += '</table>';
+    document.getElementById('anomalyTable').innerHTML = html;
+  }
+      });
+
+      html += `<tr class="${isAnomaly ? 'highlight' : ''}">`;
+      headers.forEach(h => html += `<td>${row[h]}</td>`);
+      html += '</tr>';
+    });
+
+    html += '</table>';
+    document.getElementById('anomalyTable').innerHTML = html;
+  }
+
+  function applyFilter() {
+    const col = document.getElementById('filterColumn').value;
+    const val = document.getElementById('filterValue').value.toLowerCase();
+
+    filteredData = rawData.filter(r => r[col]?.toLowerCase().includes(val));
+    drawChart();
+  }
+
+  function resetFilter() {
+    filteredData = [...rawData];
+    document.getElementById('filterValue').value = '';
+    drawChart();
+  }
+
+  function drawChart() {
+    const col = document.getElementById('chartColumn').value;
+    if (!col) return;
+
+    const data = filteredData.map(r => parseFloat(r[col]));
+
+    if (chartInstance) chartInstance.destroy();
+
+    chartInstance = new Chart(document.getElementById('chart'), {
+      type: 'line',
+      data: {
+        labels: data.map((_, i) => i + 1),
+        datasets: [{
+          label: col,
+          data: data,
+          fill: false
+        }]
+      },
+      options: {
+        plugins: {
+          tooltip: {
+            enabled: true
+          }
+        }
+      }
+    });
+  }
 </script>
 
 </body>
