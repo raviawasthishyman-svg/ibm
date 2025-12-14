@@ -1,165 +1,228 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>ddtool22 – Anomaly Highlighter</title>
+<title>CSV Data Analysis Tool</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- Chart.js (UMD build – reliable) -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body {
   font-family: Arial, sans-serif;
-  background: #f0f0f0;
+  background: #f4f6f8;
   padding: 20px;
 }
-.box {
-  background: #ffffff;
-  padding: 12px;
-  margin-bottom: 12px;
+
+.card {
+  background: #fff;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 8px;
 }
+
 table {
-  border-collapse: collapse;
   width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 14px;
 }
+
 th, td {
-  border: 1px solid #888;
-  padding: 5px;
-  text-align: center;
+  border: 1px solid #ccc;
+  padding: 6px;
 }
+
 th {
-  background: #e0e0e0;
+  background: #eee;
 }
-.anomaly {
-  background-color: #ffb3b3 !important; /* STRONG RED HIGHLIGHT */
+
+.highlight {
+  background-color: #ffd6d6;
 }
 </style>
 </head>
 
 <body>
 
-<h2>ddtool22 – CSV Anomaly Detection (Z-Score)</h2>
+<h2>CSV Data Analysis Tool</h2>
 
-<div class="box">
-  <input type="file" id="fileInput" accept=".csv">
+<div class="card">
+  <label><b>Upload CSV File:</b></label><br>
+  <input type="file" id="csvFile" accept=".csv">
 </div>
 
-<div class="box">
-  Column:
-  <select id="columnSelect"></select>
-  Z-Score Threshold:
-  <input type="number" id="zLimit" value="3" step="0.1">
-  <button onclick="analyze()">Analyze</button>
+<div class="card">
+  <h3>Descriptive Statistics</h3>
+  <div id="stats"></div>
 </div>
 
-<div class="box" id="stats">Upload a CSV to begin</div>
-
-<div class="box">
-  <table id="dataTable"></table>
+<div class="card">
+  <h3>Full Dataset (Anomalies Highlighted)</h3>
+  <p><b>Note:</b> Red rows indicate anomalous records.</p>
+  <div id="fullTable"></div>
 </div>
 
-<div class="box">
+<div class="card">
+  <h3>Anomalous Records (Z-score ≥ 3)</h3>
+  <p><b>Total Records:</b> <span id="totalCount">0</span></p>
+  <p><b>Anomalous Records:</b> <span id="anomalyCount">0</span></p>
+  <div id="anomalyTable"></div>
+</div>
+
+<div class="card">
+  <h3>Visualization</h3>
+  <label>Select Numeric Column:</label>
+  <select id="chartColumn"></select>
   <canvas id="chart"></canvas>
 </div>
 
 <script>
+let rawData = [];
 let headers = [];
-let rows = [];
-let chart = null;
+let chartInstance = null;
+let anomalyIndexSet = new Set();
 
-/* ---------- LOAD CSV ---------- */
-document.getElementById("fileInput").addEventListener("change", function (e) {
-  const file = e.target.files[0];
-  if (!file) return;
+document.getElementById("csvFile").addEventListener("change", handleFile);
 
+function handleFile(e) {
   const reader = new FileReader();
-  reader.onload = function () {
-    const lines = reader.result.trim().split(/\r?\n/);
-    headers = lines[0].split(",");
-
-    rows = [];
-    for (let i = 1; i < lines.length; i++) {
-      if (!lines[i].trim()) continue;
-      const values = lines[i].split(",");
-      let obj = {};
-      headers.forEach((h, j) => obj[h] = values[j]);
-      rows.push(obj);
-    }
-
-    setupColumnSelect();
-    renderTable(rows);
-  };
-  reader.readAsText(file);
-});
-
-/* ---------- SETUP ---------- */
-function setupColumnSelect() {
-  columnSelect.innerHTML = "";
-  headers.forEach(h => columnSelect.add(new Option(h, h)));
+  reader.onload = () => parseCSV(reader.result);
+  reader.readAsText(e.target.files[0]);
 }
 
-/* ---------- ANALYZE & HIGHLIGHT ---------- */
-function analyze() {
-  const col = columnSelect.value;
-  const limit = parseFloat(zLimit.value);
+function parseCSV(text) {
+  const rows = text.trim().split("\n");
+  headers = rows[0].split(",");
 
-  const nums = rows
-    .map(r => parseFloat(r[col]))
-    .filter(v => !isNaN(v));
+  rawData = rows.slice(1).map(r => {
+    const values = r.split(",");
+    let obj = {};
+    headers.forEach((h, i) => obj[h] = values[i]);
+    return obj;
+  });
 
-  const mean = nums.reduce((a, b) => a + b, 0) / nums.length;
-  const sd = Math.sqrt(
-    nums.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / nums.length
-  );
+  computeStats();
+  detectAnomalies();
+  renderFullTable();
+  setupChart();
+}
 
-  rows.forEach(r => {
-    const v = parseFloat(r[col]);
-    if (isNaN(v)) {
-      r._z = "";
-      r._anomaly = false;
-    } else {
-      const z = (v - mean) / sd;
-      r._z = z.toFixed(2);
-      r._anomaly = Math.abs(z) > limit;
+function isNumericColumn(col) {
+  return rawData.every(r => !isNaN(parseFloat(r[col])));
+}
+
+function computeStats() {
+  let html = "<table><tr><th>Column</th><th>Mean</th><th>SD</th><th>Min</th><th>Max</th></tr>";
+
+  headers.forEach(h => {
+    if (!isNumericColumn(h)) return;
+
+    const nums = rawData.map(r => parseFloat(r[h]));
+    const mean = nums.reduce((a,b)=>a+b,0)/nums.length;
+    const sd = Math.sqrt(nums.reduce((a,b)=>a+(b-mean)**2,0)/nums.length);
+
+    html += `<tr>
+      <td>${h}</td>
+      <td>${mean.toFixed(2)}</td>
+      <td>${sd.toFixed(2)}</td>
+      <td>${Math.min(...nums)}</td>
+      <td>${Math.max(...nums)}</td>
+    </tr>`;
+  });
+
+  html += "</table>";
+  document.getElementById("stats").innerHTML = html;
+}
+
+function detectAnomalies() {
+  anomalyIndexSet.clear();
+  let anomalyRows = [];
+  let anomalyCount = 0;
+
+  rawData.forEach((row, index) => {
+    let isAnomaly = false;
+
+    headers.forEach(h => {
+      if (isNumericColumn(h)) {
+        const nums = rawData.map(r => parseFloat(r[h]));
+        const mean = nums.reduce((a,b)=>a+b,0)/nums.length;
+        const sd = Math.sqrt(nums.reduce((a,b)=>a+(b-mean)**2,0)/nums.length);
+
+        if (sd !== 0) {
+          const z = (parseFloat(row[h]) - mean) / sd;
+          if (Math.abs(z) >= 3) isAnomaly = true;
+        }
+      }
+    });
+
+    if (isAnomaly) {
+      anomalyCount++;
+      anomalyRows.push(row);
+      anomalyIndexSet.add(index);
     }
   });
 
-  document.getElementById("stats").innerHTML =
-    "Mean: " + mean.toFixed(3) + "<br>" +
-    "Standard Deviation: " + sd.toFixed(3) + "<br>" +
-    "Anomaly rule: |Z| > " + limit;
+  document.getElementById("totalCount").textContent = rawData.length;
+  document.getElementById("anomalyCount").textContent = anomalyCount;
 
-  renderTable(rows);
-  drawChart(nums, col);
-}
+  let html = "<table><tr>";
+  headers.forEach(h => html += `<th>${h}</th>`);
+  html += "</tr>";
 
-/* ---------- TABLE (ANOMALIES IN RED) ---------- */
-function renderTable(data) {
-  let html = "<tr>";
-  headers.forEach(h => html += "<th>" + h + "</th>");
-  html += "<th>Z</th></tr>";
-
-  data.forEach(r => {
-    html += "<tr class='" + (r._anomaly ? "anomaly" : "") + "'>";
-    headers.forEach(h => html += "<td>" + (r[h] || "") + "</td>");
-    html += "<td>" + (r._z || "") + "</td></tr>";
+  anomalyRows.forEach(r => {
+    html += "<tr class='highlight'>";
+    headers.forEach(h => html += `<td>${r[h]}</td>`);
+    html += "</tr>";
   });
 
-  dataTable.innerHTML = html;
+  html += "</table>";
+  document.getElementById("anomalyTable").innerHTML = html;
 }
 
-/* ---------- CHART ---------- */
-function drawChart(values, label) {
-  if (chart) chart.destroy();
+function renderFullTable() {
+  let html = "<table><tr>";
+  headers.forEach(h => html += `<th>${h}</th>`);
+  html += "</tr>";
 
-  chart = new Chart(document.getElementById("chart"), {
+  rawData.forEach((row, index) => {
+    const cls = anomalyIndexSet.has(index) ? "highlight" : "";
+    html += `<tr class="${cls}">`;
+    headers.forEach(h => html += `<td>${row[h]}</td>`);
+    html += "</tr>";
+  });
+
+  html += "</table>";
+  document.getElementById("fullTable").innerHTML = html;
+}
+
+function setupChart() {
+  const select = document.getElementById("chartColumn");
+  select.innerHTML = "";
+
+  headers.forEach(h => {
+    if (isNumericColumn(h)) {
+      select.add(new Option(h, h));
+    }
+  });
+
+  select.onchange = drawChart;
+  drawChart();
+}
+
+function drawChart() {
+  const col = document.getElementById("chartColumn").value;
+  if (!col) return;
+
+  const data = rawData.map(r => parseFloat(r[col]));
+
+  if (chartInstance) chartInstance.destroy();
+
+  chartInstance = new Chart(document.getElementById("chart"), {
     type: "line",
     data: {
-      labels: values.map((_, i) => i + 1),
-      datasets: [{
-        label: label,
-        data: values
-      }]
+      labels: data.map((_,i)=>i+1),
+      datasets: [{ label: col, data }]
     }
   });
 }
